@@ -1,0 +1,44 @@
+name: Build & Publish Anyone Rust Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+env:
+  IMAGE_NAME: anyone-rust
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    # The release profile builds with full LTO and a single codegen unit
+    timeout-minutes: 120
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build image
+        run: docker build . --file Dockerfile --tag "$IMAGE_NAME" --label "runnumber=${GITHUB_RUN_ID}"
+
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "$IMAGE_ID" | tr '[:upper:]' '[:lower:]')
+
+          # Branch or tag name, with characters a Docker tag cannot hold replaced
+          VERSION=$(printf '%s' "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-')
+          echo "IMAGE_ID=$IMAGE_ID"
+          echo "VERSION=$VERSION"
+
+          docker tag "$IMAGE_NAME" "$IMAGE_ID:${GITHUB_SHA}"
+          docker tag "$IMAGE_NAME" "$IMAGE_ID:$VERSION"
+          docker push "$IMAGE_ID:${GITHUB_SHA}"
+          docker push "$IMAGE_ID:$VERSION"

@@ -1,0 +1,11 @@
+# Allowlist: ignore everything, then admit only what the Dockerfile copies.
+*
+!Cargo.toml
+!Cargo.lock
+!crates
+!examples
+!maint
+
+# Build output left inside the admitted directories by local cargo runs.
+**/target
+**/target-coverage
