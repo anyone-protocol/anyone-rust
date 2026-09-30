@@ -1,4 +1,3 @@
-# 1.92 builds every ref in this repo: release tags need 1.91, upstream main needs 1.92.
 ARG RUST_VERSION=1.92
 ARG DEBIAN_VERSION=bookworm
 
@@ -9,8 +8,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-# Cargo will not load the workspace unless every member is present, and twelve of them
-# live under examples/ and maint/. Nothing else in the repo takes part in the build.
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
 COPY examples examples
@@ -28,8 +25,6 @@ RUN apt-get update \
 
 COPY --from=build /src/target/release/arti /usr/local/bin/arti
 
-# Arti listens on loopback by default, which is unreachable from outside the container.
-# Network settings go in /etc/arti/arti.d/ so this file never has to be replaced.
 RUN printf '%s\n' \
     '[proxy]' \
     'socks_listen = "0.0.0.0:9150"' \
@@ -39,9 +34,11 @@ RUN printf '%s\n' \
     'state_dir = "/var/lib/arti/state"' \
     > /etc/arti/arti.toml
 
+ENV XDG_CONFIG_HOME=/etc
+
 USER arti
 VOLUME /var/lib/arti
 EXPOSE 9150
 
 ENTRYPOINT ["arti"]
-CMD ["proxy", "-c", "/etc/arti/arti.toml", "-c", "/etc/arti/arti.d/"]
+CMD ["proxy"]

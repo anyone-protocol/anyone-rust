@@ -77,15 +77,13 @@ fn default_v3idents() -> Vec<RsaIdentity> {
     }
 
     vec![
-        rsa("27102BC123E7AF1D4741AE047E160C91ADC76B21"), // bastet
-        rsa("0232AF901C31A04EE9848595AF9BB7620D4C5B2E"), // dannenberg
-        rsa("E8A9C45EDE6D711294FADF8E7951F4DE6CA56B58"), // dizum
-        rsa("70849B868D606BAECFB6128C5E3D782029AA394F"), // faravahar
-        rsa("ED03BB616EB2F60BEC80151114BB25CEF515B226"), // gabelmoo
-        rsa("23D15D965BC35114467363C165C4F724B64B4F66"), // longclaw
-        rsa("49015F787433103580E3B66A1707A00E60F2D15B"), // maatuska
-        rsa("F533C81CEF0BC0267857C99B2F471ADF249FA232"), // moria1
-        rsa("2F3DF9CA0E5D36F2685A2DA67184EB8DCB8CBA8C"), // tor26
+        rsa("88F29CB5FE86A688E31990A3B20BD562D0C089E1"), // ATORDAeuclive
+        rsa("9572A9D4141A2AFC43C416E978D805E7C98B3B25"), // ATORDAuselive
+        rsa("FFBFD3D2E92EEAA9162335FF8DF259CC62713784"), // ATORDAuswlive
+        rsa("6CE85CF74AB78E4D350E0418234B97F47AB32A20"), // AnyoneAshLive
+        rsa("39C78145CFDF464E624626D4F78A315387132082"), // AnyoneHilLive
+        rsa("5F18C895685A4207E0778FEB2A9CE4C90DABE7A6"), // AnyoneHelLive
+        rsa("271F7D1592BF37AEB67BF48164928720EF9D0648"), // AnyoneFalLive
     ]
 }
 
@@ -100,30 +98,20 @@ fn default_uploads() -> Vec<Vec<SocketAddr>> {
     }
 
     vec![
-        // bastet
-        vec![
-            sa("204.13.164.118:80"),
-            sa("[2620:13:4000:6000::1000:118]:80"),
-        ],
-        // dannenberg
-        vec![sa("193.23.244.244:80"), sa("[2001:678:558:1000::244]:80")],
-        // dizum
-        vec![sa("45.66.35.11:80"), sa("[2a09:61c0::1337]:80")],
-        // faravahar
-        vec![sa("216.218.219.41:80"), sa("[2001:470:164:2::2]:80")],
-        // gabelmoo
-        vec![
-            sa("131.188.40.189:80"),
-            sa("[2001:638:a000:4140::ffff:189]:80"),
-        ],
-        // longclaw
-        vec![sa("199.58.81.140:80")],
-        // maatuska
-        vec![sa("171.25.193.9:443"), sa("[2001:67c:289c::9]:443")],
-        // moria1
-        vec![sa("128.31.0.39:9231")],
-        // tor26
-        vec![sa("217.196.147.77:80"), sa("[2a02:16a8:662:2203::1]:80")],
+        // ATORDAeuclive
+        vec![sa("49.13.145.234:9230")],
+        // ATORDAuselive
+        vec![sa("5.161.108.187:9230")],
+        // ATORDAuswlive
+        vec![sa("5.78.90.106:9230")],
+        // AnyoneAshLive
+        vec![sa("5.161.228.187:9230")],
+        // AnyoneHilLive
+        vec![sa("5.78.94.15:9230")],
+        // AnyoneHelLive
+        vec![sa("95.216.32.105:9230")],
+        // AnyoneFalLive
+        vec![sa("176.9.29.53:9230")],
     ]
 }
 
@@ -165,18 +153,14 @@ mod test {
         assert_eq!(dflt.downloads, default_downloads());
         assert_eq!(dflt.votes, default_votes());
 
+        assert_eq!(dflt.v3idents.len(), 7);
+        assert_eq!(dflt.uploads.len(), 7);
         assert_eq!(
-            dflt.v3idents[8],
-            RsaIdentity::from_hex("2F3DF9CA0E5D36F2685A2DA67184EB8DCB8CBA8C").unwrap()
+            dflt.v3idents[6],
+            RsaIdentity::from_hex("271F7D1592BF37AEB67BF48164928720EF9D0648").unwrap()
         );
-        assert_eq!(
-            dflt.uploads[8],
-            vec![
-                "217.196.147.77:80".parse().unwrap(),
-                "[2a02:16a8:662:2203::1]:80".parse().unwrap()
-            ]
-        );
-        assert_eq!(dflt.uploads[8], dflt.downloads[8]);
-        assert_eq!(dflt.uploads[8], dflt.votes[8]);
+        assert_eq!(dflt.uploads[6], vec!["176.9.29.53:9230".parse().unwrap()]);
+        assert_eq!(dflt.uploads[6], dflt.downloads[6]);
+        assert_eq!(dflt.uploads[6], dflt.votes[6]);
     }
 }
