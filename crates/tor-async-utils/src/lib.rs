@@ -45,7 +45,6 @@
 #![allow(clippy::collapsible_if)] // See arti#2342
 #![deny(clippy::unused_async)]
 #![deny(clippy::string_slice)] // See arti#2571
-#![allow(recursion_depth_exceeding_limit)] // arti#2715, rust/issues/159228
 //! <!-- @@ end lint list maintained by maint/add_warning @@ -->
 
 mod join_read_write;
@@ -55,7 +54,9 @@ mod sink_try_send;
 mod sinkext;
 mod watch;
 
+pub mod bw_pool;
 pub mod counting_streams;
+pub mod global_rate_limit;
 pub mod oneshot_broadcast;
 pub mod peekable_stream;
 pub mod rate_limited_writer;
