@@ -4,8 +4,7 @@ use std::io::{BufRead, IsTerminal as _, Write};
 
 use anyhow::{Context as _, Result, bail};
 use arti_client::TorClientConfig;
-use fs_mistrust::CheckedDir;
-use tor_basic_utils::PathExt as _;
+use fs_mistrust::{CheckedDir, anon_home::PathExt as _};
 use tor_error::warn_report;
 use tracing::{info, warn};
 
@@ -84,13 +83,13 @@ fn recorded(dir: &CheckedDir) -> bool {
         Ok(_) => {
             warn!(
                 "Ignoring {}: it must contain exactly \"{AGREED}\" and nothing else",
-                path.display_lossy()
+                path.anonymize_home()
             );
             false
         }
         Err(fs_mistrust::Error::NotFound(_)) => false,
         Err(e) => {
-            warn_report!(e, "Ignoring {}", path.display_lossy());
+            warn_report!(e, "Ignoring {}", path.anonymize_home());
             false
         }
     }
