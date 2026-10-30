@@ -343,7 +343,7 @@ where
                         Arg::new("agree-to-terms")
                             .long("agree-to-terms")
                             .action(ArgAction::SetTrue)
-                            .help("Agree to the Anyone terms and conditions (https://www.anyone.io/terms).")
+                            .help("Agree to the Anyone terms and conditions (https://anyone.io/terms).")
                     )
             )
             .subcommand_required(true)
@@ -472,13 +472,16 @@ where
         }
     }
 
+    terms::ensure_agreed(
+        matches
+            .subcommand_matches("proxy")
+            .is_some_and(|proxy_matches| proxy_matches.get_flag("agree-to-terms")),
+        config.application().agree_to_terms,
+        &client_config,
+    )?;
+
     // Check for the "proxy" subcommand.
     if let Some(proxy_matches) = matches.subcommand_matches("proxy") {
-        terms::ensure_agreed(
-            proxy_matches.get_flag("agree-to-terms"),
-            config.application().agree_to_terms,
-            &client_config,
-        )?;
         return subcommands::proxy::run(
             runtime,
             proxy_matches,

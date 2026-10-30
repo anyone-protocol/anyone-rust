@@ -5,10 +5,12 @@ use std::io::{BufRead, IsTerminal as _, Write};
 use anyhow::{Context as _, Result, bail};
 use arti_client::TorClientConfig;
 use fs_mistrust::CheckedDir;
-use tracing::info;
+use tor_basic_utils::PathExt as _;
+use tor_error::warn_report;
+use tracing::{info, warn};
 
 /// Where the terms and conditions are published.
-const TERMS_URL: &str = "https://www.anyone.io/terms";
+const TERMS_URL: &str = "https://anyone.io/terms";
 
 /// File in the state directory that records agreement.
 const AGREEMENT_FILE: &str = "terms-agreement";
@@ -76,8 +78,22 @@ fn check<R: BufRead, W: Write>(
 
 /// Return true if the state directory records agreement.
 fn recorded(dir: &CheckedDir) -> bool {
-    dir.read_to_string(AGREEMENT_FILE)
-        .is_ok_and(|content| content == AGREED)
+    let path = dir.as_path().join(AGREEMENT_FILE);
+    match dir.read_to_string(AGREEMENT_FILE) {
+        Ok(content) if content == AGREED => true,
+        Ok(_) => {
+            warn!(
+                "Ignoring {}: it must contain exactly \"{AGREED}\" and nothing else",
+                path.display_lossy()
+            );
+            false
+        }
+        Err(fs_mistrust::Error::NotFound(_)) => false,
+        Err(e) => {
+            warn_report!(e, "Ignoring {}", path.display_lossy());
+            false
+        }
+    }
 }
 
 /// Record agreement in the state directory.
@@ -118,7 +134,12 @@ mod test {
 
     fn run(dir: &CheckedDir, flag: bool, config: bool, answers: Option<&str>) -> (bool, String) {
         let mut output = Vec::new();
-        let result = check(dir, flag, config, answers.map(|a| (a.as_bytes(), &mut output)));
+        let result = check(
+            dir,
+            flag,
+            config,
+            answers.map(|a| (a.as_bytes(), &mut output)),
+        );
         (result.is_ok(), String::from_utf8(output).unwrap())
     }
 
@@ -174,5 +195,13 @@ mod test {
         let (_tmp, dir) = state();
         assert_eq!(run(&dir, false, false, Some("")).0, false);
         assert_eq!(recorded(&dir), false);
+    }
+
+    #[test]
+    fn other_file_content_refuses() {
+        let (_tmp, dir) = state();
+        dir.write_and_replace(AGREEMENT_FILE, "agreed\n").unwrap();
+        assert_eq!(recorded(&dir), false);
+        assert_eq!(run(&dir, false, false, None).0, false);
     }
 }

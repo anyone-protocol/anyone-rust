@@ -46,23 +46,33 @@ such a file leaves Tor's authorities in place. Check the log for `unrecognized c
 
 ## Terms and conditions
 
-`arti proxy` does not start until the user has agreed to the Anyone terms and conditions at
-https://www.anyone.io/terms, the same rule the Anon client applies. Agreement is any one of:
+Arti runs no command until the user has agreed to the Anyone terms and conditions at
+https://anyone.io/terms, the same rule the Anon client applies. `--help` and `--version` work
+without agreement. Agreement is any one of:
 
 - `application.agree_to_terms = true` in the config, or `-o application.agree_to_terms=true`
 - `arti proxy --agree-to-terms`, which also records the agreement in the state directory
-- a `terms-agreement` file in the state directory containing `agreed`, from an earlier agreement
+- a `terms-agreement` file in the state directory from an earlier agreement
 - answering `y` at the prompt, which is shown when standard input is a terminal
 
-Without any of these and without a terminal, `arti proxy` exits with an error.
+Without any of these and without a terminal, Arti exits with an error.
+
+The `terms-agreement` file counts only if it contains exactly `agreed`, with no trailing newline,
+and passes Arti's file permission checks. Arti logs a warning when it ignores the file. To agree
+without the prompt, use the config option rather than writing the file.
+
+The check runs before every command, so a command added upstream is covered with no change here.
+The default build has only `proxy`. Upstream's tests for the optional `hss`, `hsc` and `keys`
+commands do not agree to the terms, so they fail when those features are enabled.
 
 | File | Content |
 | --- | --- |
 | `crates/arti/src/terms.rs` | The check, the prompt, and the agreement file. |
-| `crates/arti/src/lib.rs` | The `--agree-to-terms` flag on `proxy`, and the check before `proxy` starts. |
+| `crates/arti/src/lib.rs` | The `--agree-to-terms` flag on `proxy`, and the check before any command runs. |
 | `crates/arti/src/cfg.rs` | The `application.agree_to_terms` option. |
 | `crates/arti/src/arti-example-config.toml` | The option in the example config. |
 | `crates/arti-client/src/config.rs` | A public accessor for the state directory. |
+| `crates/arti/tests/testcases/arti/terms-not-agreed.*` | A test that `arti proxy` refuses to start without agreement. |
 
 ## Container image
 
@@ -77,7 +87,8 @@ and publishes `ghcr.io/anyone-protocol/anyone-rust:main` and `:<commit sha>`.
 - State and cache live on the `/var/lib/arti` volume.
 - The image does not agree to the terms and conditions for the user. Run it as
   `proxy --agree-to-terms`, set the option in a mounted config file, or run it with `-it` to
-  answer the prompt.
+  answer the prompt. With `-t` but not `-i` (in Compose, `tty: true` without
+  `stdin_open: true`), it waits at the prompt indefinitely.
 
 The build context is an allowlist in `.dockerignore`. The workspace has members under `examples/`
 and `maint/`, and cargo will not load it without them, so those directories are copied along with
