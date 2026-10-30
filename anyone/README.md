@@ -9,12 +9,21 @@ so the client joins the Anyone network with no configuration.
 | --- | --- |
 | `crates/tor-dircommon/src/authority.rs` | The directory authorities: the v3 identities allowed to sign a consensus, and their directory addresses. |
 | `crates/tor-dircommon/data/fallback_dirs.rs` | The fallback caches Arti downloads its first directory documents from. Generated. |
+| `crates/tor-dirclient/src/request.rs` | The download size limit per microdescriptor and per router descriptor, raised from 8 KiB to 20 KiB. |
 
 The Anon client ships an empty fallback list and bootstraps from the authorities, so the fallback
 list here is the authorities themselves.
 
 With only Anyone identities able to sign a consensus, a Tor consensus cannot validate, and the
 client cannot fall back to the Tor network.
+
+Relay families on the Anyone network are large, so their `family` lines make many descriptors
+larger than 8 KiB. Upstream's limit truncates those downloads, and the client never learns about
+the affected relays. The directory authorities reject any router descriptor over 20,000 bytes
+(`MAX_DESCRIPTOR_UPLOAD_SIZE` in the Anon client), and a microdescriptor is smaller than the router
+descriptor it comes from, so 20 KiB fits every descriptor the network accepts. If the authorities'
+limit is raised, this limit has to be raised with it. A full batch of 500 digests is limited to
+10 MiB.
 
 ## Regenerating the network identity
 
