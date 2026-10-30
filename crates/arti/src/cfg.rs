@@ -119,6 +119,10 @@ pub(crate) struct ApplicationConfig {
     /// to the network until after we are bootstrapping.
     #[deftly(tor_config(default))]
     pub(crate) defer_bootstrap: bool,
+
+    /// If true, the user agrees to the Anyone terms and conditions.
+    #[deftly(tor_config(default))]
+    pub(crate) agree_to_terms: bool,
 }
 
 /// Configuration for one or more proxy listeners.
@@ -571,6 +575,7 @@ mod test {
                 "proxy.socket_send_buf_size",
                 "proxy.socket_recv_buf_size",
                 "application.defer_bootstrap",
+                "application.agree_to_terms",
                 "address_filter.allow_resolving_local_addrs",
             ],
         );

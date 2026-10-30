@@ -781,6 +781,11 @@ impl TorClientConfig {
         Ok((state_dir, mistrust))
     }
 
+    /// Return the state directory, expanded to a path.
+    pub fn expanded_state_dir(&self) -> StdResult<PathBuf, ConfigBuildError> {
+        self.storage.expand_state_dir(&self.path_resolver)
+    }
+
     /// Access the `tor_memquota` configuration
     ///
     /// Ad-hoc accessor for testing purposes.

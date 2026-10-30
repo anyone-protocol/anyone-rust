@@ -1,0 +1,5 @@
+bin.name = "arti"
+args = "proxy -o application.allow_running_as_root=true"
+status.code = 127
+timeout = "60s"
+env.remove = ["XDG_CONFIG_HOME", "XDG_DATA_HOME"]

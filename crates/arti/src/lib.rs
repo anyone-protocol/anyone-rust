@@ -54,6 +54,7 @@
 #![allow(clippy::print_stdout)]
 
 mod subcommands;
+mod terms;
 
 /// Helper:
 /// Declare a series of modules as public if experimental_api is set,
@@ -338,6 +339,12 @@ where
                             .value_parser(clap::value_parser!(u16))
                             .help(r#"Localhost port to listen on for DNS requests (0 means "disabled"; overrides addresses in the config if specified)."#)
                     )
+                    .arg(
+                        Arg::new("agree-to-terms")
+                            .long("agree-to-terms")
+                            .action(ArgAction::SetTrue)
+                            .help("Agree to the Anyone terms and conditions (https://anyone.io/terms).")
+                    )
             )
             .subcommand_required(true)
             .arg_required_else_help(true);
@@ -464,6 +471,14 @@ where
             return Err(e.into());
         }
     }
+
+    terms::ensure_agreed(
+        matches
+            .subcommand_matches("proxy")
+            .is_some_and(|proxy_matches| proxy_matches.get_flag("agree-to-terms")),
+        config.application().agree_to_terms,
+        &client_config,
+    )?;
 
     // Check for the "proxy" subcommand.
     if let Some(proxy_matches) = matches.subcommand_matches("proxy") {
