@@ -439,7 +439,7 @@ impl sealed::RequestableInner for MicrodescRequest {
 
     fn max_response_len(&self) -> usize {
         // TODO: Pick a more principled number; I just made this one up.
-        self.digests.len().saturating_mul(8 * 1024)
+        self.digests.len().saturating_mul(32 * 1024)
     }
 
     fn anonymized(&self) -> AnonymizedRequest {
@@ -532,7 +532,7 @@ impl sealed::RequestableInner for RouterDescRequest {
     fn max_response_len(&self) -> usize {
         // TODO: Pick a more principled number; I just made these up.
         match self.requested_descriptors {
-            RequestedDescs::Digests(ref digests) => digests.len().saturating_mul(8 * 1024),
+            RequestedDescs::Digests(ref digests) => digests.len().saturating_mul(32 * 1024),
             RequestedDescs::All => 64 * 1024 * 1024, // big but not impossible
         }
     }
@@ -900,7 +900,7 @@ mod test {
         assert!(!req.partial_response_body_ok());
         req.push(*d2);
         assert!(req.partial_response_body_ok());
-        assert_eq!(req.max_response_len(), 16 << 10);
+        assert_eq!(req.max_response_len(), 64 << 10);
 
         let req = crate::util::request_to_string(&req.make_request()?);
 
@@ -1048,7 +1048,7 @@ mod test {
             digests.push(*d2);
         }
         assert!(req.partial_response_body_ok());
-        assert_eq!(req.max_response_len(), 16 << 10);
+        assert_eq!(req.max_response_len(), 64 << 10);
 
         let req = crate::util::request_to_string(&req.make_request()?);
 
