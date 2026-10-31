@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+. /usr/share/debconf/confmodule
+
+db_get anyone-rust/terms
+if [ "$RET" != "true" ]; then
+	echo "You must accept the terms and conditions to install this package."
+	db_unregister anyone-rust/terms
+	exit 1
+fi
+
+#DEBHELPER#
+
+exit 0

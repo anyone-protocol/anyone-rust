@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = optimize=-lto
+export DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/default.mk
+include /usr/share/dpkg/buildflags.mk
+
+export CARGO_HOME ?= $(CURDIR)/debian/cargo_home
+export CARGO_TARGET_DIR ?= $(CURDIR)/debian/target
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -rf $(CURDIR)/debian/cargo_home $(CURDIR)/debian/target
+
+override_dh_auto_build:
+	cargo build --locked --release -p arti --bin arti
+
+override_dh_auto_test:
+ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
+	cargo test --locked -p arti
+endif
+
+override_dh_auto_install:
+	install -D -m 0755 $(CARGO_TARGET_DIR)/release/arti debian/anyone-rust/usr/bin/anyone-rust
+
+override_dh_compress:
+	dh_compress -Xarti-example-config.toml
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym

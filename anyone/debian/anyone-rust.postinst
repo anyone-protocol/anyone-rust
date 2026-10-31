@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+	configure)
+		if ! getent passwd anyone-rust >/dev/null; then
+			adduser --quiet --system --group --disabled-password \
+				--home /var/lib/anyone-rust --no-create-home \
+				--shell /usr/sbin/nologin anyone-rust
+		fi
+		if ! [ -d /var/lib/anyone-rust ]; then
+			mkdir /var/lib/anyone-rust
+			chown anyone-rust:anyone-rust /var/lib/anyone-rust
+			chmod 02700 /var/lib/anyone-rust
+			if command -v restorecon >/dev/null 2>&1; then
+				restorecon /var/lib/anyone-rust
+			fi
+		fi
+	;;
+esac
+
+#DEBHELPER#
+
+exit 0

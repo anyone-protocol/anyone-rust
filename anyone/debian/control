@@ -1,0 +1,27 @@
+Source: anyone-rust
+Section: net
+Priority: optional
+Maintainer: Anyone Protocol <ops@anyone.io>
+Build-Depends:
+  debhelper-compat (= 13),
+  pkgconf | pkg-config,
+  ca-certificates,
+  libssl-dev,
+  libsqlite3-dev,
+Standards-Version: 4.7.0
+Homepage: https://github.com/anyone-protocol/anyone-rust
+Rules-Requires-Root: no
+Vcs-Git: https://github.com/anyone-protocol/anyone-rust.git
+Vcs-Browser: https://github.com/anyone-protocol/anyone-rust
+
+Package: anyone-rust
+Architecture: any
+Multi-Arch: foreign
+Pre-Depends: debconf (>= 0.5) | debconf-2.0
+Depends: ${misc:Depends}, ${shlibs:Depends}, adduser, procps
+Description: Rust client for the Anyone network
+ anyone-rust is a command line program for connecting to the Anyone
+ network. It runs as a SOCKS proxy.
+ .
+ You can direct programs to connect through the SOCKS port, and their
+ connections are anonymized through the Anyone network.
