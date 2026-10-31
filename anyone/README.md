@@ -39,6 +39,65 @@ git fetch --no-tags https://gitlab.torproject.org/tpo/core/arti.git "+refs/tags/
 anyone/check-drift.py
 ```
 
+## Merging an upstream release
+
+Upstream releases are merged into `main` from their release tags, through a pull request merged
+with a merge commit, so upstream's history stays as it is. Merge release tags only, not upstream's
+`main`: the drift guard accepts an unsigned commit only if an upstream release tag contains it.
+
+1. Fetch the upstream tags and check the new tag's signature. Each release tag is signed by the
+   Arti maintainer who made the release. If `git verify-tag` reports no public key, fetch the key
+   it names with `gpg --keyserver hkps://keys.openpgp.org --recv-keys KEYID` and run it again.
+
+   ```
+   git fetch --no-tags https://gitlab.torproject.org/tpo/core/arti.git "+refs/tags/arti-v*:refs/upstream-tags/arti-v*"
+   git verify-tag refs/upstream-tags/arti-vX.Y.Z
+   ```
+
+2. Merge the tag into a new branch from `main`, with a signed merge commit:
+
+   ```
+   git fetch origin
+   git switch -c upstream-arti-vX.Y.Z origin/main
+   git merge -S --no-ff -m "Merge upstream arti-vX.Y.Z" refs/upstream-tags/arti-vX.Y.Z
+   ```
+
+3. Resolve any conflicts. They come up in the files listed in the tables in this README, where
+   upstream changed lines this fork also changes. Apply this fork's change to upstream's new
+   version of the file. For `fallback_dirs.rs`, keep this fork's file with
+   `git checkout --ours crates/tor-dircommon/data/fallback_dirs.rs`, and regenerate it as in
+   [Regenerating the network identity](#regenerating-the-network-identity) if upstream changed its
+   format. Finish with `git commit -S`.
+
+4. Check what upstream changed in its own `debian/` since the previous release, and carry over
+   what applies to `anyone/debian/`, such as changes to the service's hardening:
+
+   ```
+   git diff refs/upstream-tags/arti-vPREVIOUS refs/upstream-tags/arti-vX.Y.Z -- debian/
+   ```
+
+5. If upstream raised `rust-version` in `crates/arti/Cargo.toml`, set the new version as
+   `RUST_VERSION` in the `Dockerfile` and in `.github/workflows/debian-packages.yml`, and in the
+   image of that workflow's `test` job.
+
+6. Run the drift guard and the tests. The drift guard now compares against the new tag. If
+   upstream moved a file this fork changes, it fails until the table lists the new path.
+
+   ```
+   anyone/check-drift.py
+   cargo test --locked -p arti -p arti-client -p tor-config-path -p tor-dirclient -p tor-dircommon
+   ```
+
+7. Push the branch and open a pull request. Its run builds and install-tests every package and
+   bootstraps each one on the live network. The repository ruleset `require-verified-commits`
+   rejects upstream's unsigned commits, so an admin sets it to Disabled for the push and back to
+   Active right after, while the pull request's checks run. To merge, the admin disables it
+   again, merges with **Create a merge commit**, and sets it back to Active. Never squash or
+   rebase, which would rewrite upstream's history.
+
+8. Release from `main` as in [Builds and releases](#builds-and-releases), starting again at
+   `anyone1`: `vX.Y.Z-anyone1-beta1`, then `vX.Y.Z-anyone1`.
+
 ## Regenerating the network identity
 
 The authority list compiled into the Anon client, `src/app/config/auth_dirs.inc` in
@@ -196,9 +255,6 @@ only if its commit is on `main`.
 The apt repository processes each suite's upload on its own, so a failed publish can leave some
 suites with the new version and others without it. Check which suites have it before running the
 release again. The Anon client's releases go through the same incoming queue.
-
-When an upstream merge raises the minimum Rust version, update both `RUST_VERSION` and the `test`
-job's image in the workflow.
 
 ## Container image
 
