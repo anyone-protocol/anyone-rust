@@ -89,11 +89,12 @@ with a merge commit, so upstream's history stays as it is. Merge release tags on
    ```
 
 7. Push the branch and open a pull request. Its run builds and install-tests every package and
-   bootstraps each one on the live network. The repository ruleset `require-verified-commits`
-   rejects upstream's unsigned commits, so an admin sets it to Disabled for the push and back to
-   Active right after, while the pull request's checks run. To merge, the admin disables it
-   again, merges with **Create a merge commit**, and sets it back to Active. Never squash or
-   rebase, which would rewrite upstream's history.
+   bootstraps each one on the live network. The repository ruleset `require-verified-commits`,
+   which requires signed commits, does not apply to branches named `upstream-arti-v*`, so the
+   push of upstream's unsigned commits goes through. Merging them into `main` takes an account on
+   the ruleset's bypass list, which can bypass it only by merging a pull request. Merge with
+   **Create a merge commit**, never squash or rebase, which would rewrite upstream's history. The
+   branch can be deleted after the merge.
 
 8. Release from `main` as in [Builds and releases](#builds-and-releases), starting again at
    `anyone1`: `vX.Y.Z-anyone1-beta1`, then `vX.Y.Z-anyone1`.
