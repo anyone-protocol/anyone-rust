@@ -1,0 +1,31 @@
+#!/usr/bin/make -f
+
+export DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/default.mk
+include /usr/share/dpkg/buildflags.mk
+
+export CARGO_HOME ?= $(CURDIR)/debian/cargo_home
+export CARGO_TARGET_DIR ?= $(CURDIR)/debian/target
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -rf $(CURDIR)/debian/cargo_home $(CURDIR)/debian/target debian/anyone-rust.toml
+
+override_dh_auto_build:
+	cargo build --locked --release -p arti --bin arti
+
+override_dh_auto_test:
+ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
+	cargo test --locked -p arti
+endif
+
+override_dh_auto_install:
+	install -D -m 0755 $(CARGO_TARGET_DIR)/release/arti debian/anyone-rust/usr/bin/anyone-rust
+	sed -e 's|^#cache_dir = .*|cache_dir = "/var/lib/anyone-rust/cache"|' \
+	    -e 's|^#state_dir = .*|state_dir = "/var/lib/anyone-rust/state"|' \
+	    crates/arti/src/arti-example-config.toml > debian/anyone-rust.toml
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym

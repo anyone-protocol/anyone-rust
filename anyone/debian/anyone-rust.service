@@ -1,0 +1,26 @@
+[Unit]
+Description=Anyone network client (anyone-rust)
+Documentation=https://github.com/anyone-protocol/anyone-rust
+After=network.target
+Before=nss-lookup.target
+Wants=nss-lookup.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/anyone-rust proxy --config /etc/anyone-rust/anyone-rust.toml --config /etc/anyone-rust/anyone-rust.d/ -o application.agree_to_terms=true
+ExecReload=/bin/kill -HUP ${MAINPID}
+KillSignal=SIGINT
+User=anyone-rust
+Group=anyone-rust
+LimitNOFILE=16384
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=full
+ReadOnlyDirectories=/
+ReadWriteDirectories=-/var/lib/anyone-rust
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

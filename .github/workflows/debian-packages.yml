@@ -1,0 +1,230 @@
+name: Debian packages
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*-anyone*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  RUST_VERSION: "1.92"
+  DEBFULLNAME: Jim Toth
+  DEBEMAIL: jim@memeticblock.com
+
+jobs:
+  drift:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream release tags
+        run: git fetch --no-tags https://gitlab.torproject.org/tpo/core/arti.git "+refs/tags/arti-v*:refs/tags/arti-v*"
+
+      - name: Check the difference from upstream
+        run: python3 anyone/check-drift.py
+
+  test:
+    runs-on: ubuntu-24.04
+    container: docker.io/library/rust:1.92-slim-bookworm
+    timeout-minutes: 120
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git pkg-config libssl-dev libsqlite3-dev
+
+      - uses: actions/checkout@v5
+
+      - name: Test
+        run: cargo test --locked -p arti -p arti-client -p tor-config-path -p tor-dirclient -p tor-dircommon
+
+  build:
+    name: build (${{ matrix.suite }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container: ${{ matrix.image }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie, jammy, noble, resolute]
+        arch: [amd64, arm64]
+        include:
+          - { suite: bookworm, image: "docker.io/library/debian:bookworm", tag: d12.bookworm }
+          - { suite: trixie, image: "docker.io/library/debian:trixie", tag: d13.trixie }
+          - { suite: jammy, image: "docker.io/library/ubuntu:jammy", tag: jammy }
+          - { suite: noble, image: "docker.io/library/ubuntu:noble", tag: noble }
+          - { suite: resolute, image: "docker.io/library/ubuntu:resolute", tag: resolute }
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential debhelper devscripts fakeroot \
+            pkg-config libssl-dev libsqlite3-dev ca-certificates curl git
+
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Choose the version and distribution
+        id: version
+        shell: bash
+        run: |
+          upstream=$(sed -n 's/^version = "\(.*\)"$/\1/p' crates/arti/Cargo.toml | head -n 1)
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-anyone([0-9]+)(-beta([0-9]+))?$ ]]; then
+              echo "Tag $GITHUB_REF_NAME is not vX.Y.Z-anyoneN or vX.Y.Z-anyoneN-betaM." >&2
+              exit 1
+            fi
+            if [[ "${BASH_REMATCH[1]}" != "$upstream" ]]; then
+              echo "Tag version ${BASH_REMATCH[1]} does not match the arti crate version $upstream." >&2
+              exit 1
+            fi
+            if [[ -n "${BASH_REMATCH[4]}" ]]; then
+              channel=beta
+              version="$upstream+anyone${BASH_REMATCH[2]}~beta${BASH_REMATCH[4]}"
+            else
+              channel=live
+              version="$upstream+anyone${BASH_REMATCH[2]}"
+            fi
+            distribution="anon-$channel-${{ matrix.suite }}"
+          else
+            version="$upstream+anyone0~git$(date -u +%Y%m%d).${GITHUB_SHA::9}"
+            distribution=UNRELEASED
+          fi
+          echo "version=$version-1~${{ matrix.tag }}+1" >> "$GITHUB_OUTPUT"
+          echo "distribution=$distribution" >> "$GITHUB_OUTPUT"
+
+      - name: Build the package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DISTRIBUTION: ${{ steps.version.outputs.distribution }}
+        run: |
+          rm -rf debian
+          cp -r anyone/debian debian
+          dch --newversion "$VERSION" --distribution "$DISTRIBUTION" --force-distribution \
+            --force-bad-version "Build of $GITHUB_REF_NAME for ${{ matrix.suite }}."
+          DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -b -us -uc
+          mkdir out
+          mv ../anyone-rust_* out/
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.suite }}-${{ matrix.arch }}
+          path: out/
+          if-no-files-found: error
+
+  smoke:
+    name: smoke (${{ matrix.suite }}, ${{ matrix.arch }})
+    needs: build
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container: ${{ matrix.image }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie, jammy, noble, resolute]
+        arch: [amd64, arm64]
+        include:
+          - { suite: bookworm, image: "docker.io/library/debian:bookworm" }
+          - { suite: trixie, image: "docker.io/library/debian:trixie" }
+          - { suite: jammy, image: "docker.io/library/ubuntu:jammy" }
+          - { suite: noble, image: "docker.io/library/ubuntu:noble" }
+          - { suite: resolute, image: "docker.io/library/ubuntu:resolute" }
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deb-${{ matrix.suite }}-${{ matrix.arch }}
+          path: pkg
+
+      - name: Install without agreeing to the terms
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates procps
+          if apt-get install -y ./pkg/anyone-rust_*.deb; then
+            echo "The package installed without agreement to the terms." >&2
+            exit 1
+          fi
+          test ! -e /usr/bin/anyone-rust
+
+      - name: Install after agreeing to the terms
+        run: |
+          echo "anyone-rust anyone-rust/terms boolean true" | debconf-set-selections
+          apt-get install -y ./pkg/anyone-rust_*.deb
+          anyone-rust --version
+          test -f /etc/anyone-rust/anyone-rust.toml
+
+      - name: Bootstrap with the service command
+        run: |
+          unit=$(dpkg -L anyone-rust | grep '/anyone-rust\.service$')
+          command=$(sed -n 's/^ExecStart=//p' "$unit")
+          runuser -u anyone-rust -- $command > proxy.log 2>&1 &
+          for _ in $(seq 1 60); do
+            grep -q "Sufficiently bootstrapped" proxy.log && break
+            sleep 3
+          done
+          cat proxy.log
+          grep -q "Sufficiently bootstrapped" proxy.log
+          curl --fail --silent --show-error --max-time 60 --socks5-hostname 127.0.0.1:9150 \
+            --output /dev/null https://www.anyone.io/
+          pkill -INT -x anyone-rust
+          ! grep -qE '\b(Tor|tor|Arti|arti)\b' proxy.log
+
+      - name: Purge
+        run: |
+          apt-get purge -y anyone-rust
+          test ! -e /var/lib/anyone-rust
+          test -z "$(debconf-show anyone-rust)"
+
+  publish:
+    needs: [drift, test, smoke]
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    container: docker.io/library/debian:bookworm
+    environment: release
+    concurrency: release
+    steps:
+      - name: Install tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends devscripts dput openssh-client gnupg
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          path: pkg
+
+      - name: Sign
+        env:
+          DEBIAN_PRIVATE_KEY: ${{ secrets.DEBIAN_PRIVATE_KEY }}
+          DEBIAN_FINGERPRINT: ${{ secrets.DEBIAN_FINGERPRINT }}
+        run: |
+          echo "$DEBIAN_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          for changes in pkg/*/*.changes; do
+            debsign -k"$DEBIAN_FINGERPRINT" --no-re-sign "$changes"
+          done
+
+      - name: Upload
+        env:
+          DEBIAN_HOST: ${{ secrets.DEBIAN_HOST }}
+          DEBIAN_ID_RSA: ${{ secrets.DEBIAN_ID_RSA }}
+        run: |
+          mkdir -p /root/.ssh
+          ssh-keyscan "$DEBIAN_HOST" > /root/.ssh/known_hosts
+          echo "$DEBIAN_ID_RSA" | base64 -d > /root/.ssh/id_rsa
+          chmod 600 /root/.ssh/id_rsa
+          printf '%s\n' '[anon]' "fqdn = $DEBIAN_HOST" 'incoming = /data/debian/incoming' \
+            'method = scp' 'login = reprepro' 'allow_unsigned_uploads = 0' > dput.cf
+          dput -c dput.cf anon pkg/*/*.changes
+          ssh "reprepro@$DEBIAN_HOST" "reprepro processincoming incoming"

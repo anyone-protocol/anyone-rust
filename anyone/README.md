@@ -25,6 +25,19 @@ descriptor it comes from, so 20 KiB fits every descriptor the network accepts. I
 limit is raised, this limit has to be raised with it. A full batch of 500 digests is limited to
 10 MiB.
 
+### Drift guard
+
+`anyone/check-drift.py` fails when a file differs from the latest upstream release tag (`arti-v*`)
+in the history of `HEAD` without being listed in a table in this README, or when a commit that no
+upstream release tag contains has no signature. Files under `anyone/` and `.github/`, the
+`Dockerfile`, and `.dockerignore` are this fork's own and need no listing. Every pull request runs
+it. To run it locally, fetch the upstream tags first:
+
+```
+git fetch --no-tags https://gitlab.torproject.org/tpo/core/arti.git "+refs/tags/arti-v*:refs/tags/arti-v*"
+anyone/check-drift.py
+```
+
 ## Regenerating the network identity
 
 The authority list compiled into the Anon client, `src/app/config/auth_dirs.inc` in
@@ -120,6 +133,56 @@ copyright notices stay as upstream.
 | `crates/arti-client/src/config.rs` | The default config file names. |
 | `crates/arti/tests/testcases/arti/help.stdout` | The expected `--help` output. |
 | `crates/arti/tests/testcases/arti/rebranded-early-log.*` | A test that a log line printed before the config is loaded is rebranded and has no crate name. |
+
+## Debian package
+
+`.github/workflows/debian-packages.yml` builds the `anyone-rust` package for Debian bookworm and
+trixie and Ubuntu jammy, noble, and resolute, on amd64 and arm64. The packaging is in
+`anyone/debian/`. Upstream's `debian/` is left as it is, and the build replaces it with
+`anyone/debian/` before running `dpkg-buildpackage`. Each suite gets its own build, because the
+binary links the suite's OpenSSL and SQLite.
+
+The package installs:
+
+- the program as `/usr/bin/anyone-rust`
+- `/etc/anyone-rust/anyone-rust.toml`, which is upstream's example config with the state and cache
+  under `/var/lib/anyone-rust`, and the folder `/etc/anyone-rust/anyone-rust.d/` for more config
+- the `anyone-rust` systemd service, which runs as the `anyone-rust` user and listens for SOCKS on
+  `127.0.0.1:9150`
+
+As the Anon package does, the install asks whether the user accepts the terms at
+https://anyone.io/terms, and stops without installing anything unless they do. The service agrees
+through its command line, `-o application.agree_to_terms=true`, as the Anon service does through its
+defaults file. For an unattended install, give the answer first:
+
+```
+echo "anyone-rust anyone-rust/terms boolean true" | debconf-set-selections
+```
+
+Purging the package removes `/var/lib/anyone-rust` and the answer.
+
+### Builds and releases
+
+Every pull request runs the drift guard, the tests of the crates this fork changes, the ten package
+builds, and an install test of each package in a fresh container of its suite. The install test
+checks that the package refuses to install without agreement and installs with it, that the
+service's command bootstraps on the live network and serves SOCKS, that its output never names Tor
+or Arti, and that purging cleans up.
+
+A tag releases the packages after the same jobs pass:
+
+- `vX.Y.Z-anyoneN-betaM` publishes version `X.Y.Z+anyoneN~betaM-1~SUITE+1` to `anon-beta-SUITE`
+- `vX.Y.Z-anyoneN` publishes version `X.Y.Z+anyoneN-1~SUITE+1` to `anon-live-SUITE`
+
+`X.Y.Z` must match the version of the `arti` crate. `SUITE` is `d12.bookworm`, `d13.trixie`,
+`jammy`, `noble`, or `resolute`, the suffixes the Anon package uses, and the distributions are the
+Anon client's own, so users add the Anyone apt repository as for the Anon client and run
+`apt install anyone-rust`. A beta version sorts below the live version with the same `N`.
+
+Publishing signs each upload with the repository's key and uploads it to the apt repository's
+incoming queue, the same way the Anon client's workflow does. It runs in the GitHub environment
+`release`, which should have a required reviewer, and uses the secrets `DEBIAN_PRIVATE_KEY`,
+`DEBIAN_FINGERPRINT`, `DEBIAN_HOST`, and `DEBIAN_ID_RSA`.
 
 ## Container image
 
