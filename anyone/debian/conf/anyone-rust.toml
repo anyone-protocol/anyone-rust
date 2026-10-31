@@ -1,0 +1,10 @@
+# Settings for the anyone-rust service.
+#
+# Put your own settings in .toml files under /etc/anyone-rust/anyone-rust.d/. They are read after
+# this file, and upgrades never change them.
+#
+# /usr/share/doc/anyone-rust/examples/arti-example-config.toml lists every setting with its default.
+
+[storage]
+cache_dir = "/var/lib/anyone-rust/cache"
+state_dir = "/var/lib/anyone-rust/state"

@@ -29,12 +29,13 @@ limit is raised, this limit has to be raised with it. A full batch of 500 digest
 
 `anyone/check-drift.py` fails when a file differs from the latest upstream release tag (`arti-v*`)
 in the history of `HEAD` without being listed in a table in this README, or when a commit that no
-upstream release tag contains has no signature. Files under `anyone/` and `.github/`, the
-`Dockerfile`, and `.dockerignore` are this fork's own and need no listing. Every pull request runs
-it. To run it locally, fetch the upstream tags first:
+upstream release tag contains has no signature or a bad one. Files under `anyone/` and `.github/`,
+the `Dockerfile`, and `.dockerignore` are this fork's own and need no listing. It reads the upstream
+tags from `refs/upstream-tags/`, fetched from upstream, so a tag in this repository cannot stand in
+for one. Every pull request runs it. To run it locally:
 
 ```
-git fetch --no-tags https://gitlab.torproject.org/tpo/core/arti.git "+refs/tags/arti-v*:refs/tags/arti-v*"
+git fetch --no-tags https://gitlab.torproject.org/tpo/core/arti.git "+refs/tags/arti-v*:refs/upstream-tags/arti-v*"
 anyone/check-drift.py
 ```
 
@@ -145,10 +146,14 @@ binary links the suite's OpenSSL and SQLite.
 The package installs:
 
 - the program as `/usr/bin/anyone-rust`
-- `/etc/anyone-rust/anyone-rust.toml`, which is upstream's example config with the state and cache
-  under `/var/lib/anyone-rust`, and the folder `/etc/anyone-rust/anyone-rust.d/` for more config
+- `/etc/anyone-rust/anyone-rust.toml`, which only puts the state and cache under
+  `/var/lib/anyone-rust`
+- the folder `/etc/anyone-rust/anyone-rust.d/` for your own settings, in `.toml` files that are
+  read after the main file and that upgrades never change
+- upstream's example config, listing every setting, as
+  `/usr/share/doc/anyone-rust/examples/arti-example-config.toml`
 - the `anyone-rust` systemd service, which runs as the `anyone-rust` user and listens for SOCKS on
-  `127.0.0.1:9150`
+  `127.0.0.1:9150` and `[::1]:9150`
 
 As the Anon package does, the install asks whether the user accepts the terms at
 https://anyone.io/terms, and stops without installing anything unless they do. The service agrees
@@ -159,7 +164,8 @@ defaults file. For an unattended install, give the answer first:
 echo "anyone-rust anyone-rust/terms boolean true" | debconf-set-selections
 ```
 
-Purging the package removes `/var/lib/anyone-rust` and the answer.
+Purging the package removes `/var/lib/anyone-rust` and the answer. The `anyone-rust` system user
+stays, as is usual for Debian packages.
 
 ### Builds and releases
 
@@ -181,8 +187,18 @@ Anon client's own, so users add the Anyone apt repository as for the Anon client
 
 Publishing signs each upload with the repository's key and uploads it to the apt repository's
 incoming queue, the same way the Anon client's workflow does. It runs in the GitHub environment
-`release`, which should have a required reviewer, and uses the secrets `DEBIAN_PRIVATE_KEY`,
-`DEBIAN_FINGERPRINT`, `DEBIAN_HOST`, and `DEBIAN_ID_RSA`.
+`release` and uses the secrets `DEBIAN_PRIVATE_KEY`, `DEBIAN_FINGERPRINT`, `DEBIAN_HOST`, and
+`DEBIAN_ID_RSA`. Before the first tag, create that environment with a required reviewer, store the
+secrets in it rather than in the repository, and limit it to tags matching `v*-anyone*`. If the
+environment does not exist, GitHub creates it with no protection on first use. A tag is published
+only if its commit is on `main`.
+
+The apt repository processes each suite's upload on its own, so a failed publish can leave some
+suites with the new version and others without it. Check which suites have it before running the
+release again. The Anon client's releases go through the same incoming queue.
+
+When an upstream merge raises the minimum Rust version, update both `RUST_VERSION` and the `test`
+job's image in the workflow.
 
 ## Container image
 
