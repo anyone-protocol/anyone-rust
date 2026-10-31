@@ -393,6 +393,7 @@ where
     };
     let pre_config_logging = tracing_subscriber::fmt()
         .without_time()
+        .with_target(false)
         .with_writer(pre_config_logging_writer)
         .finish();
     let pre_config_logging = tracing::Dispatch::new(pre_config_logging);

@@ -1,15 +1,16 @@
 //! The Anyone name in everything the program prints.
 
 use std::borrow::Cow;
-use std::io::{self, IsTerminal as _, Write};
+use std::io::{self, Write};
 
 /// A word to replace, its replacement, and bytes that must not follow it.
 type Swap = (&'static str, &'static str, &'static [u8]);
 
 /// The words replaced in output, in order of precedence.
-const SWAPS: [Swap; 4] = [
+const SWAPS: [Swap; 5] = [
     ("a Tor", "an Anyone", b""),
     ("Tor", "Anyone", b""),
+    ("tor", "anyone", b"/"),
     ("Arti", "anyone-rust", b""),
     ("arti", "anyone-rust", b".:/"),
 ];
@@ -42,13 +43,23 @@ fn swaps_at(bytes: &[u8], i: usize, (from, _, not_after): &Swap) -> bool {
     let in_word = |b: &u8| b.is_ascii_alphanumeric() || b"_-".contains(b);
     let (before, rest) = bytes.split_at(i);
     rest.starts_with(from.as_bytes())
-        && !before
-            .last()
-            .is_some_and(|b| in_word(b) || b"./".contains(b))
+        && (ends_with_color_code(before)
+            || !before
+                .last()
+                .is_some_and(|b| in_word(b) || b"./".contains(b)))
         && !before.ends_with(b"C ")
         && !rest
             .get(from.len())
             .is_some_and(|b| in_word(b) || not_after.contains(b))
+}
+
+/// Return true if `bytes` ends with a terminal color code, such as `ESC [ 1 m`.
+fn ends_with_color_code(bytes: &[u8]) -> bool {
+    let Some(esc) = bytes.iter().rposition(|b| *b == 0x1b) else {
+        return false;
+    };
+    matches!(bytes.get(esc + 1..), Some([b'[', params @ .., b'm'])
+        if params.iter().all(|b| b.is_ascii_digit() || *b == b';'))
 }
 
 /// A writer that rebrands each write before passing it on.
@@ -68,19 +79,10 @@ impl<W: Write> Write for Rebranded<W> {
     }
 }
 
-/// Print a command-line error, help, or version text, and exit, as [`clap::Error::exit`] does.
+/// Print a command-line error, help, or version text without color, and exit, as
+/// [`clap::Error::exit`] does.
 pub(crate) fn clap_exit(err: &clap::Error) -> ! {
-    let rendered = err.render();
-    let terminal = if err.use_stderr() {
-        io::stderr().is_terminal()
-    } else {
-        io::stdout().is_terminal()
-    };
-    let text = if terminal {
-        rendered.ansi().to_string()
-    } else {
-        rendered.to_string()
-    };
+    let text = err.render().to_string();
     let text = rebrand(&text);
     let _ = if err.use_stderr() {
         io::stderr().write_all(text.as_bytes())
@@ -148,6 +150,19 @@ mod test {
             ),
             ("Tor's directory. Arti.", "Anyone's directory. anyone-rust."),
             ("Tor – réseau", "Anyone – réseau"),
+            (
+                "error: tor: problem with filesystem permissions",
+                "error: anyone: problem with filesystem permissions",
+            ),
+            ("tor operation timed out", "anyone operation timed out"),
+            (
+                "\x1b[1mUsage:\x1b[0m \x1b[1marti\x1b[0m proxy",
+                "\x1b[1mUsage:\x1b[0m \x1b[1manyone-rust\x1b[0m proxy",
+            ),
+            (
+                "\x1b[3merror\x1b[0m\x1b[2m=\x1b[0mtor: timed out",
+                "\x1b[3merror\x1b[0m\x1b[2m=\x1b[0manyone: timed out",
+            ),
         ] {
             assert_eq!(rebrand(from), to);
         }
@@ -168,6 +183,12 @@ mod test {
             "~/.config/arti/arti.toml",
             "arti:get_config",
             "https://gitlab.torproject.org/tpo/core/arti",
+            "tor_dirmgr=debug",
+            "tor-spec",
+            "/var/lib/tor/",
+            "tor/",
+            "torrc",
+            "\x1b[1mTorrc",
             "no names here",
         ] {
             assert!(matches!(rebrand(text), Cow::Borrowed(_)), "{text}");
