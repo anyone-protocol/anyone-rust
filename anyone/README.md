@@ -102,8 +102,9 @@ It applies to:
 - help text, `--version`, and command-line errors, which are printed without color
 - the error printed when the program exits on a failure
 
-The replacement covers everything printed, so a path, hostname, or relay nickname containing the
-word `Tor` or `Arti` is shown with the replacement too.
+The replacement covers everything printed, including names that are data: a hostname such as
+`tor.example.com` is shown as `anyone.example.com`, and a relay nicknamed `Tor` as `Anyone`. A
+word right after `/` or `.` is kept, so paths are shown as they are.
 
 Outside the output, the default folders are named `anyone-rust`, such as `~/.config/anyone-rust`
 on Linux, and so are the config files, `anyone-rust.toml` and `anyone-rust.d/`. Crate names,
