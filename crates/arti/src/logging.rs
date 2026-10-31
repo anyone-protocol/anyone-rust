@@ -202,8 +202,9 @@ where
         // we apply custom field formatting so that error fields are listed last
         .fmt_fields(fields::ErrorsLastFieldFormatter)
         .with_ansi(use_color)
+        .with_target(false)
         .with_timer(timer)
-        .with_writer(std::io::stderr) // we make this explicit, to match with use_color.
+        .with_writer(|| crate::branding::Rebranded(std::io::stderr())) // we make this explicit, to match with use_color.
         .with_filter(filter))
 }
 
@@ -379,7 +380,8 @@ where
         // we apply custom field formatting so that error fields are listed last
         .fmt_fields(fields::ErrorsLastFieldFormatter)
         .with_ansi(false)
-        .with_writer(nonblocking)
+        .with_target(false)
+        .with_writer(move || crate::branding::Rebranded(nonblocking.clone()))
         .with_timer(timer)
         .with_filter(filter);
     Ok((layer, guard))

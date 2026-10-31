@@ -19,26 +19,27 @@ FROM docker.io/library/debian:${DEBIAN_VERSION}-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libssl3 libsqlite3-0 \
  && rm -rf /var/lib/apt/lists/* \
- && useradd --system --uid 10001 --create-home --home-dir /var/lib/arti arti \
- && chmod 700 /var/lib/arti \
- && mkdir -p /etc/arti/arti.d
+ && useradd --system --uid 10001 --create-home --home-dir /var/lib/anyone-rust anyone-rust \
+ && chmod 700 /var/lib/anyone-rust \
+ && mkdir -p /etc/anyone-rust/anyone-rust.d
 
-COPY --from=build /src/target/release/arti /usr/local/bin/arti
+COPY --from=build /src/target/release/arti /usr/local/bin/anyone-rust
 
 RUN printf '%s\n' \
     '[proxy]' \
     'socks_listen = "0.0.0.0:9150"' \
     '' \
     '[storage]' \
-    'cache_dir = "/var/lib/arti/cache"' \
-    'state_dir = "/var/lib/arti/state"' \
-    > /etc/arti/arti.toml
+    'cache_dir = "/var/lib/anyone-rust/cache"' \
+    'state_dir = "/var/lib/anyone-rust/state"' \
+    > /etc/anyone-rust/anyone-rust.toml
 
 ENV XDG_CONFIG_HOME=/etc
 
-USER arti
-VOLUME /var/lib/arti
+USER anyone-rust
+VOLUME /var/lib/anyone-rust
 EXPOSE 9150
+STOPSIGNAL SIGINT
 
-ENTRYPOINT ["arti"]
+ENTRYPOINT ["anyone-rust"]
 CMD ["proxy"]
