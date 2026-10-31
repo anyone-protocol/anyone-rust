@@ -179,8 +179,8 @@ jobs:
           done
           cat proxy.log
           grep -q "Sufficiently bootstrapped" proxy.log
-          curl --fail --silent --show-error --max-time 60 --socks5-hostname 127.0.0.1:9150 \
-            --output /dev/null https://www.anyone.io/
+          curl --fail --silent --show-error --max-time 60 --retry 3 --retry-all-errors --retry-delay 5 \
+            --socks5-hostname 127.0.0.1:9150 --output /dev/null https://www.anyone.io/
           pkill -INT -x anyone-rust
           if grep -qE '\b(Tor|tor|Arti|arti)\b' proxy.log; then
             echo "The output names Tor or Arti." >&2

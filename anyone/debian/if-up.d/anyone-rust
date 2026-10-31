@@ -2,7 +2,7 @@
 
 set -e
 
-if [ "$IFACE" = "lo" ] || [ "$MODE" != "start" ]; then
+if [ "$IFACE" = "lo" ] || [ "$MODE" != "start" ] || [ ! -d /run/systemd/system ]; then
 	exit 0
 fi
 
