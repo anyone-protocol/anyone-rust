@@ -831,13 +831,16 @@ pub fn default_config_files() -> Result<Vec<ConfigurationSource>, CfgPathError> 
     // the base path resolver includes the 'ARTI_CONFIG' variable
     let path_resolver = tor_config_path::arti_client_base_resolver();
 
-    ["${ARTI_CONFIG}/arti.toml", "${ARTI_CONFIG}/arti.d/"]
-        .into_iter()
-        .map(|f| {
-            let path = CfgPath::new(f.into()).path(&path_resolver)?;
-            Ok(ConfigurationSource::from_path(path))
-        })
-        .collect()
+    [
+        "${ARTI_CONFIG}/anyone-rust.toml",
+        "${ARTI_CONFIG}/anyone-rust.d/",
+    ]
+    .into_iter()
+    .map(|f| {
+        let path = CfgPath::new(f.into()).path(&path_resolver)?;
+        Ok(ConfigurationSource::from_path(path))
+    })
+    .collect()
 }
 
 /// The environment variable we look at when deciding whether to disable FS permissions checking.
@@ -991,8 +994,8 @@ mod test {
         // here, so we'll just make sure it does _something_ plausible.
 
         let dflt = default_config_files().unwrap();
-        assert!(dflt[0].as_path().unwrap().ends_with("arti.toml"));
-        assert!(dflt[1].as_path().unwrap().ends_with("arti.d"));
+        assert!(dflt[0].as_path().unwrap().ends_with("anyone-rust.toml"));
+        assert!(dflt[1].as_path().unwrap().ends_with("anyone-rust.d"));
         assert_eq!(dflt.len(), 2);
     }
 

@@ -71,7 +71,7 @@ fn get_program_dir() -> Result<PathBuf, CfgPathError> {
 fn project_dirs() -> Result<&'static ProjectDirs, CfgPathError> {
     /// lazy lock holding the ProjectDirs object.
     static PROJECT_DIRS: LazyLock<Option<ProjectDirs>> =
-        LazyLock::new(|| ProjectDirs::from("org", "torproject", "Arti"));
+        LazyLock::new(|| ProjectDirs::from("io", "anyone", "anyone-rust"));
 
     PROJECT_DIRS.as_ref().ok_or(CfgPathError::NoProjectDirs)
 }

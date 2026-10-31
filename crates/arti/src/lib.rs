@@ -53,6 +53,7 @@
 #![allow(clippy::print_stderr)]
 #![allow(clippy::print_stdout)]
 
+mod branding;
 mod subcommands;
 mod terms;
 
@@ -387,8 +388,8 @@ where
     // before each message.
     let pre_config_logging_writer = || {
         // Weirdly, with .without_time(), tracing produces messages with a leading space.
-        eprint!("arti:");
-        std::io::stderr()
+        eprint!("anyone-rust:");
+        branding::Rebranded(std::io::stderr())
     };
     let pre_config_logging = tracing_subscriber::fmt()
         .without_time()
@@ -559,8 +560,8 @@ pub fn main() {
             }
 
             match e.downcast_ref::<clap::Error>() {
-                Some(clap_err) => clap_err.exit(),
-                None => with_safe_logging_suppressed(|| tor_error::report_and_exit(e)),
+                Some(clap_err) => branding::clap_exit(clap_err),
+                None => with_safe_logging_suppressed(|| branding::report_and_exit(e)),
             }
         }
     }

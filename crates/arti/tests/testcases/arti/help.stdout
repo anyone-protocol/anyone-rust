@@ -1,4 +1,4 @@
-A Rust Tor implementation.
+A Rust Anyone implementation.
 
-Usage: arti <SUBCOMMAND> [OPTIONS]
+Usage: anyone-rust <SUBCOMMAND> [OPTIONS]
 ...

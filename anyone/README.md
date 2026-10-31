@@ -83,17 +83,53 @@ commands do not agree to the terms, so they fail when those features are enabled
 | `crates/arti-client/src/config.rs` | A public accessor for the state directory. |
 | `crates/arti/tests/testcases/arti/terms-not-agreed.*` | A test that `arti proxy` refuses to start without agreement. |
 
+## Branding
+
+What the program prints carries the Anyone name, as the Anon client's output does. The source keeps
+upstream's wording: `crates/arti/src/branding.rs` replaces the words on their way out, so messages
+added or reworded upstream are covered with no change here.
+
+It replaces the words `Tor` with `Anyone`, `a Tor` with `an Anyone`, and `Arti`, and `arti` as the
+program name, with `anyone-rust`. A word that is part of a longer name is kept, such as
+`Tor-Family-Preference`, `arti-client`, a path like `/usr/local/bin/arti`, or `C Tor`.
+
+It applies to:
+
+- console and file log lines, which also leave out the crate each message comes from, as the Anon
+  client's do. Log filters still use crate names, such as `tor_dirmgr=debug`.
+- help text, `--version`, and command-line errors
+- the error printed when the program exits on a failure
+
+The replacement covers everything printed, so a path, hostname, or relay nickname containing the
+word `Tor` or `Arti` is shown with the replacement too.
+
+Outside the output, the default folders are named `anyone-rust`, such as `~/.config/anyone-rust`
+on Linux, and so are the config files, `anyone-rust.toml` and `anyone-rust.d/`. Crate names,
+identifiers, the cargo binary name `arti`, protocol messages on the wire, documentation, and
+copyright notices stay as upstream.
+
+| File | Content |
+| --- | --- |
+| `crates/arti/src/branding.rs` | The replacement, the log writer, and the two exit paths. |
+| `crates/arti/src/lib.rs` | The early log writer and the exit paths go through `branding.rs`. |
+| `crates/arti/src/logging.rs` | The console and file log writers go through `branding.rs`, without crate names. |
+| `crates/tor-config-path/src/arti_client_paths.rs` | The default folder name. |
+| `crates/arti-client/src/config.rs` | The default config file names. |
+| `crates/arti/tests/testcases/arti/help.stdout` | The expected `--help` output. |
+
 ## Container image
 
 `.github/workflows/build-and-publish-image.yml` builds the `Dockerfile` on every push to `main`
 and publishes `ghcr.io/anyone-protocol/anyone-rust:main` and `:<commit sha>`.
 
-- `arti proxy` runs as uid 10001 with SOCKS on `0.0.0.0:9150`.
-- `XDG_CONFIG_HOME=/etc` makes `/etc/arti/arti.toml` and `/etc/arti/arti.d/` the default config,
-  so it applies under any command, not only the default one.
-- `/etc/arti/arti.toml` holds container settings only. Extra settings go in files mounted under
-  `/etc/arti/arti.d/`.
-- State and cache live on the `/var/lib/arti` volume.
+- `anyone-rust proxy` runs as the `anyone-rust` user, uid 10001, with SOCKS on `0.0.0.0:9150`.
+- `XDG_CONFIG_HOME=/etc` makes `/etc/anyone-rust/anyone-rust.toml` and
+  `/etc/anyone-rust/anyone-rust.d/` the default config, so it applies under any command, not only
+  the default one.
+- `/etc/anyone-rust/anyone-rust.toml` holds container settings only. Extra settings go in files
+  mounted under `/etc/anyone-rust/anyone-rust.d/`.
+- State and cache live on the `/var/lib/anyone-rust` volume.
+- The image stops with SIGINT, because the program does not exit on SIGTERM.
 - The image does not agree to the terms and conditions for the user. Run it as
   `proxy --agree-to-terms`, set the option in a mounted config file, or run it with `-it` to
   answer the prompt. With `-t` but not `-i` (in Compose, `tty: true` without
